@@ -1,0 +1,148 @@
+# -*- coding: utf-8 -*-
+
+import json
+import csv
+
+
+print ''
+print ''
+print 'This script requires that you have a mapboxId and access token. You can signup for them at mapbox.com'
+print ''
+print ''
+
+print 'please enter your mapboxId'
+
+mapBoxId = raw_input()
+print 'please enter your mapboxToken'
+
+mapBoxToken = raw_input()
+
+print 'What is the path to your output directory?'
+directorypath = raw_input()
+jsonpath = directorypath + "/MyMap.json"
+htmlpath = directorypath + "/MyMap.html"
+csspath = directorypath + "/MyMap.css"
+print "What is the path to your csv file? Don't forget the file extension!"
+csvpath = raw_input()
+
+
+
+jsonfile = open(jsonpath,"w")
+htmlfile = open(htmlpath,"w")
+cssfile = open(csspath,"w")
+csvfile = open(csvpath , "r")
+fieldnames = [] 
+#"First_Author",	"Year",	"Journal","Title",	"Study_Country",	"Study_Location",	"Latitude",	"Longitude",	"type"
+print "please input the column name of the first item you'd like in a popup. If complete press 2"
+fields = raw_input()
+while fields != '2':
+	fieldnames.append(fields)
+	print "please input the next column you'd like in the popup. If complete press 2"
+	fields = raw_input()
+
+#print 'Your field names are:' + str(fieldnames)
+#userinput array
+print 'What is the name of your Latitude column?'
+Latitude = raw_input() # must match lat identifier in the csv
+print 'Should Latitude be in your popup? If yes press 1. If no press 2.'
+latInclude = raw_input()
+if latInclude == '1':
+	fieldnames.append(Latitude)
+print 'What is the name of your Longitude column?'
+Longitude = raw_input() # must match lon identifier in the csv
+print 'Should Longitude be in your popup?If yes press 1. If no press 2.'
+lonInclude = raw_input()
+if lonInclude == '1':
+	fieldnames.append(Longitude)
+#Latitude = 'Latitude'
+#Longitude = 'Longitude'
+
+reader = csv.DictReader(csvfile)
+
+geojson =[]
+
+headers = 1
+print fieldnames
+last = 0
+for row in reader:
+	first = 0
+	properties = {}
+	#print fieldnames
+	popupcontent = []
+	#print len(fieldnames)
+	#print last
+
+	#if headers == 1:		
+		#for column in row:
+			#print b
+			#fieldnames.append(column)
+			#headers = 0
+	for name in fieldnames:
+			popupcontent.append('<b >'+name+'</b>' + ': ' +row[name])
+
+	#print popupcontent
+	popupString = ''
+	for line in range(len(popupcontent)):
+		popupString = popupString + popupcontent[line] + '</br>'
+	#print properties['popupContent']
+	properties['popupContent'] =  popupString
+
+
+	if len(row[Longitude]) > 0:
+		geojson.append({"type":"Feature",'properties':properties,"geometry":{'type':"Point",'coordinates':[row[Longitude],row[Latitude]]}})
+
+jsonout = json.dumps(geojson)
+jsonfile.write('var geojson = ' + jsonout)
+jsonfile.close()
+csvfile.close()
+
+htmlfile.write('''<!DOCTYPE html>
+<head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+    <link rel="stylesheet" href="http://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.3/leaflet.css" />
+    <script src="http://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.3/leaflet.js"></script><link rel="stylesheet" href='''+"'"+ csspath+"'"+'''/><script src='''+"'"+jsonpath+"'"+'''></script>
+    <title>MyMap</title>
+</head>
+
+<body>
+    <div id="map"></div>
+</body>
+<script>
+    var map = L.map("map").setView([51.505, -0.09], 3)
+    var geojsonMarkerOptions = {
+        radius: 8,
+        fillColor: "#ff7800",
+        color: "#000",
+        weight: 1,
+        opacity: 1,
+        fillOpacity: 0.8
+    };
+
+    function onEachFeature(feature, layer) {
+        if (feature.properties && feature.properties.popupContent) {
+            layer.bindPopup(feature.properties.popupContent);
+        }
+    }
+    L.geoJson(geojson, {
+        onEachFeature: onEachFeature
+    }).addTo(map);
+    L.tileLayer('https://api.tiles.mapbox.com/v4/{id}/{z}/{x}/{y}.png?access_token=pk.eyJ1IjoiZG9tZHAxIiwiYSI6Imx0SFpObk0ifQ.Ds4fAeW-v0w4yLqt_2Q3uQ', {
+        attribution: 'Map data &copy; <a href="http://openstreetmap.org">OpenStreetMap</a> contributors, <a href="http://creativecommons.org/licenses/by-sa/2.0/">CC-BY-SA</a>, Imagery © <a href="http://mapbox.com">Mapbox</a>',
+        maxZoom: 18,
+        id:'''+ "'"+mapBoxId + "',"'''
+        accessToken:''' +"'"+ mapBoxToken +"',"'''
+    }).addTo(map);
+</script>
+
+</html>''')
+
+cssfile.write("#map { height: 100vh; } b{font-weight: 900;}")
+
+print 'It completed! It is recommended that you change the MyMap files to meaningfull names'
+
+
+
+
+
